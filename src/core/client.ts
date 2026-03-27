@@ -31,7 +31,7 @@ export class SuperDappClient {
 
     this.axios = axios.create({
       baseURL: `${this.config.baseUrl}`,
-      timeout: DEFAULT_CONFIG.REQUEST_TIMEOUT,
+      timeout: 60000,
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${this.config.apiToken}`,
@@ -48,11 +48,14 @@ export class SuperDappClient {
     // Request interceptor
     this.axios.interceptors.request.use(
       (config) => {
-        log(`Making ${config.method?.toUpperCase()} request to: ${config.url}`);
+        log(`📡 Making ${config.method?.toUpperCase()} request to: ${config.url}`);
+        if (config.data) {
+            log(`📦 Request Data: ${JSON.stringify(config.data).substring(0, 500)}`);
+        }
         return config;
       },
       (error) => {
-        log('Request error: ' + error, 'error');
+        log('❌ Request error: ' + error, 'error');
         return Promise.reject(error);
       }
     );
@@ -60,14 +63,20 @@ export class SuperDappClient {
     // Response interceptor
     this.axios.interceptors.response.use(
       (response) => {
+        log(`✅ Response received from: ${response.config.url}`);
+        log(`📥 Response Data: ${JSON.stringify(response.data).substring(0, 500)}`);
         return response;
       },
       (error) => {
-        log(
-          'Response error: ' +
-            JSON.stringify(error.response?.data || error.message, null, 2),
-          'error'
-        );
+        if (error.response) {
+            log(
+                '❌ Response error: ' +
+                JSON.stringify(error.response.data || error.message, null, 2),
+                'error'
+            );
+        } else {
+            log('❌ Network/Timeout error: ' + error.message, 'error');
+        }
         return Promise.reject(error);
       }
     );
@@ -117,6 +126,32 @@ export class SuperDappClient {
 
     const response = await this.axios.post(
       `${AGENT_BOTS_CONNECTIONS_ENDPOINT}/${roomId}/messages`,
+      {
+        message: messageBody,
+        isSilent: options?.isSilent || false,
+      }
+    );
+    return response.data;
+  }
+
+  /**
+   * Send a message with reply markup (buttons, multiselect, etc.) to a channel
+   */
+  async sendChannelMessageWithReplyMarkup(
+    channelId: string,
+    message: string,
+    replyMarkup: ReplyMarkup,
+    options?: { isSilent?: boolean }
+  ): Promise<ApiResponse> {
+    const messageBody = {
+      body: message,
+      reply_markup: replyMarkup,
+    };
+
+    const response = await this.axios.post(
+      `${AGENT_BOTS_CHANNELS_ENDPOINT}/${encodeURIComponent(
+        channelId
+      )}/messages`,
       {
         message: messageBody,
         isSilent: options?.isSilent || false,

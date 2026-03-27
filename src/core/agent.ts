@@ -119,6 +119,30 @@ export class SuperDappAgent {
   }
 
   /**
+   * Send a message with reply markup to a channel
+   */
+  async sendChannelReplyMarkupMessage(
+    type: 'buttons' | 'multiselect',
+    channelId: string,
+    message: string,
+    replyMarkup: ReplyMarkupAction[][],
+    options?: { isSilent?: boolean }
+  ) {
+    const markup = {
+      ...(type === 'multiselect' ? { type } : {}),
+      actions: replyMarkup,
+    };
+
+    const formattedMessage = formatBody(message, markup);
+    return this.client.sendChannelMessageWithReplyMarkup(
+      channelId,
+      formattedMessage,
+      markup,
+      options
+    );
+  }
+
+  /**
    * Get the underlying client for advanced operations
    */
   getClient(): SuperDappClient {
@@ -149,18 +173,22 @@ export class SuperDappAgent {
 
   private async handleMessage(rawMessage: Message) {
     try {
+      console.log('🔍 Handling raw message...');
       const message = this.parseMessage(rawMessage);
+      console.log(`📡 Parsed message: command="${message.command}", data="${message.data}"`);
       const roomId = this.getRoomId(message);
 
       // Check if it's a callback query
       const isCallbackQuery = this.isCallbackQuery(rawMessage);
 
       if (isCallbackQuery) {
+        console.log('🖱️ Handling callback query');
         await this.handleCallbackQuery(message, roomId);
       } else {
         // Handle as general message
         const handler = this.commands[message.command || ''];
         if (handler) {
+          console.log(`🎯 Executing command handler for: ${message.command}`);
           await handler({
             message,
             replyMessage: null,
@@ -168,6 +196,7 @@ export class SuperDappAgent {
           });
         } else {
           // Fallback: if no specific command matched, call a generic handler when provided
+          console.log('🔄 No command matched, falling back to generic handler');
           const fallbackMessageHandler =
             this.commands['/message'] ||
             this.commands['message'] ||
@@ -178,11 +207,13 @@ export class SuperDappAgent {
               replyMessage: null,
               roomId,
             });
+          } else {
+            console.log('⚠️ No fallback handler defined');
           }
         }
       }
     } catch (error) {
-      console.error('Message handler error:', error);
+      console.error('❌ Message handler error:', error);
     }
   }
 
