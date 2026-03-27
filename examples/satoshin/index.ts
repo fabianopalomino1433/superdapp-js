@@ -129,7 +129,6 @@ async function getFormattedEvents() {
 // Middleware
 app.use(cors());
 app.use(express.json());
-app.use(express.text({ type: 'application/json' }));
 
 async function main() {
   await loadDynamicContext();
@@ -406,7 +405,9 @@ Encuentra todos nuestros canales oficiales, redes y grupos aquí:
 
     app.post('/webhook', async (req, res) => {
       try {
-        console.log('📥 Webhook received!');
+        const body = req.body;
+        const msgText = body?.body?.m?.text || body?.body?.m?.body || 'EMPTY';
+        console.log(`📥 Webhook received! Content: "${msgText}" from: ${body?.senderId || 'unknown'}`);
         
         // Respond IMMEDIATELY to SuperDapp to avoid the 60s timeout
         res.status(200).json({ status: 'processing' });
