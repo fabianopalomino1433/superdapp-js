@@ -166,12 +166,14 @@ async function main() {
 
     // Helper para responder inteligentemente (Grupo vs DM)
     const reply = async (roomId: string, text: string, originalMessage: any, buttonRows: any[][] = []) => {
-        // En SuperDapp, si hay memberId, ese es el destino correcto para la respuesta
-        const targetId = originalMessage.memberId || roomId;
-        const isGroup = originalMessage?.__typename === 'ChannelMessage' || !!originalMessage.channelId;
+        const isGroup = originalMessage.body?.t === 'channel' || !!originalMessage.channelId || originalMessage.__typename === 'ChannelMessage';
+        
+        // Si es DM, el targetId debe ser el senderId del usuario
+        // Si es Canal, el targetId es el memberId/channelId
+        const targetId = isGroup ? (originalMessage.memberId || originalMessage.channelId || roomId) : originalMessage.senderId;
         
         try {
-            console.log(`📡 Enviando respuesta a ${isGroup ? 'canal' : 'DM'}: ${targetId}`);
+            console.log(`📡 Enviando respuesta a ${isGroup ? 'canal' : 'DM'}. Target: ${targetId}`);
             if (isGroup) {
                 if (buttonRows.length > 0) {
                     await agent.sendChannelReplyMarkupMessage('buttons', targetId, text, buttonRows);
