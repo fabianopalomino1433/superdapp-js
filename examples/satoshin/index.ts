@@ -130,6 +130,16 @@ async function getFormattedEvents() {
 app.use(cors());
 app.use(express.json());
 
+// Logger global para depuración
+app.use((req, res, next) => {
+    console.log(`📡 [${new Date().toLocaleTimeString()}] INCOMING ${req.method} ${req.path}`);
+    if (req.method === 'POST') {
+        const bodyPreview = JSON.stringify(req.body).substring(0, 100);
+        console.log(`📦 Body: ${bodyPreview}...`);
+    }
+    next();
+});
+
 async function main() {
   await loadDynamicContext();
   try {
@@ -156,29 +166,26 @@ async function main() {
 
     // Helper para responder inteligentemente (Grupo vs DM)
     const reply = async (roomId: string, text: string, originalMessage: any, buttonRows: any[][] = []) => {
-        // Detectar si es un grupo basándonos en el tipo de mensaje
-        const isGroup = originalMessage?.__typename === 'ChannelMessage';
+        // En SuperDapp, si hay memberId, ese es el destino correcto para la respuesta
+        const targetId = originalMessage.memberId || roomId;
+        const isGroup = originalMessage?.__typename === 'ChannelMessage' || !!originalMessage.channelId;
         
         try {
+            console.log(`📡 Enviando respuesta a ${isGroup ? 'canal' : 'DM'}: ${targetId}`);
             if (isGroup) {
-                // Es un grupo: Usamos el roomId que viene DENTRO del rawMessage (ese es el ID del grupo)
-                const groupChannelId = originalMessage.roomId; 
-                console.log(`📢 Respondiendo a grupo: ${groupChannelId}`);
-                
                 if (buttonRows.length > 0) {
-                    await agent.sendChannelReplyMarkupMessage('buttons', groupChannelId, text, buttonRows);
+                    await agent.sendChannelReplyMarkupMessage('buttons', targetId, text, buttonRows);
                 } else {
-                    await agent.sendChannelMessage(groupChannelId, text);
+                    await agent.sendChannelMessage(targetId, text);
                 }
             } else {
-                // Es DM: Usamos el roomId normal de la conexión
-                console.log(`💬 Respondiendo a DM: ${roomId}`);
                 if (buttonRows.length > 0) {
-                    await agent.sendReplyMarkupMessage('buttons', roomId, text, buttonRows);
+                    await agent.sendReplyMarkupMessage('buttons', targetId, text, buttonRows);
                 } else {
-                    await agent.sendConnectionMessage(roomId, text);
+                    await agent.sendConnectionMessage(targetId, text);
                 }
             }
+            console.log('✅ Respuesta enviada con éxito');
         } catch (error) {
             console.error('❌ Error enviando respuesta:', error);
         }
@@ -438,8 +445,9 @@ Encuentra todos nuestros canales oficiales, redes y grupos aquí:
       res.send('✅ This endpoint works! Send a POST request from SuperDapp to interact.');
     });
 
-    app.listen(PORT, () => {
+    app.listen(PORT, '0.0.0.0', () => {
       console.log(`🚀 Satoshin (Club Blockchain PUCP) agent is running on port ${PORT}`);
+      console.log(`🔗 Local access: http://localhost:${PORT}`);
     });
   } catch (error) {
     console.error('Fatal error:', error);

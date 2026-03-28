@@ -311,13 +311,18 @@ export class SuperDappAgent {
   private getRoomId(message: MessageData): string {
     const raw = message.rawMessage;
     
-    // If it's a channel/group message, use the memberId (which is the channel ID)
-    if (raw.__typename === 'ChannelMessage' || raw.memberId !== raw.senderId) {
+    // Priority 1: memberId is the most reliable ID for rooms (both channels and DMs)
+    if (raw.memberId) {
       return raw.memberId;
     }
     
-    // Otherwise, it's a DM, use the owner-senderId convention
-    return `${raw.owner}-${raw.senderId}`;
+    // Priority 2: owner-senderId for older DM structures
+    if (raw.owner && raw.senderId) {
+      return `${raw.owner}-${raw.senderId}`;
+    }
+    
+    // Priority 3: fallback to senderId
+    return raw.senderId;
   }
 
   private isCallbackQuery(rawMessage: Message): boolean {
