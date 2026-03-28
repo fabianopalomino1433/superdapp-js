@@ -13,6 +13,7 @@ export function createHttpsAgent(): HttpsAgent {
       const https = require('node:https');
       return new https.Agent({
         rejectUnauthorized: false,
+        family: 4, // Force IPv4 to avoid DNS resolution delays in Windows
       });
     } catch (error) {
       console.warn('HTTPS module not available');

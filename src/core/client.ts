@@ -31,7 +31,7 @@ export class SuperDappClient {
 
     this.axios = axios.create({
       baseURL: `${this.config.baseUrl}`,
-      timeout: 60000,
+      timeout: 10000, // Reduced to 10s for better responsiveness in Windows
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${this.config.apiToken}`,
